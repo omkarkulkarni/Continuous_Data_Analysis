@@ -1,0 +1,174 @@
+/* 
+Author : Omkar Kulkarni
+Date : 22/11/2015
+Description : Analysis of continious data HW 4 
+
+*/
+
+
+data caschool;
+	set conhw4.caschool;
+RUN;
+
+
+proc univariate plot data = caschool;
+	var testscr stratio nonep;
+	histogram testscr stratio nonep;
+	qqplot testscr stratio nonep;
+run;
+
+proc corr data=caschool;
+var testscr stratio nonep;
+run;
+
+proc sgscatter data=caschool;
+title "scatter plot for caschool";
+matrix testscr stratio nonep ;
+run;
+
+/* regressing without the iinteraction */
+
+proc reg data=caschool;
+model testscr = stratio nonep / clb ;
+output out=datares r=rman ;
+run;
+
+
+/* transforming 'nonep' */
+
+data caschool_trans; 
+set caschool; 
+	nonep_trans = log(nonep + 1 ); 
+run; 
+
+proc univariate plot data = caschool_trans;
+	var nonep_trans;
+	histogram nonep_trans;
+	qqplot nonep_trans;
+run;
+
+proc reg data=caschool_trans;
+model testscr = stratio nonep_trans / clb ;
+output out=datares r=rman ;
+run;
+
+/*checking assumptions*/
+
+proc reg data=caschool_trans; 
+   model testscr = stratio nonep_trans  /clb; 
+   output out=resid p=pman r=rman student=student; 
+   run; 
+
+proc gplot data=resid; 
+   plot rman*pman /vref=0; 
+   run;
+
+data resid2; 
+set resid; 
+res2 = rman*rman; 
+run; 
+
+goptions reset=all; 
+proc gplot data=resid2; 
+  plot res2*pman; 
+run; 
+quit;
+
+proc reg data=caschool_trans; 
+   model testscr = stratio nonep_trans ; 
+   plot student.*nqq. ; 
+   run; 
+
+   
+proc reg data=caschool_trans; 
+   model testscr = stratio nonep_trans ; 
+   plot student.*nqq. ; 
+   run; 
+
+
+/*Q3 only stratio*/
+
+   
+proc reg data=caschool_trans; 
+   model testscr = stratio /clb; 
+   output out=resid p=pman r=rman student=student; 
+   run; 
+
+proc gplot data=resid; 
+   plot rman*pman /vref=0; 
+   run;
+
+/*Q 4*/
+/* Interaction term */
+
+/*centering first*/ 
+
+data caschool_trans_centered; 
+set caschool_trans; 
+	stratio_centered = stratio - 19.64;
+	nonep_trans_centered = nonep_trans - 2.11;
+run; 
+
+
+proc reg data=caschool_trans_centered; 
+   model testscr = stratio_centered nonep_trans_centered  /clb; 
+   output out=resid p=pman r=rman student=student; 
+run; 
+
+data resint;
+set resid;
+interaction = stratio_centered*nonep_trans_centered; 
+run;
+
+proc reg data=resint; 
+   model testscr = stratio_centered nonep_trans_centered interaction/clb partial ; 
+   run; 
+
+
+/* graphical representation */
+
+
+
+/*Q5*/
+
+proc rsreg data = caschool_trans;
+   	model testscr = stratio nonep_trans/ lackfit;
+RUN;
+
+/*Q 6*/
+
+ proc reg data=caschool_trans; 
+   model testscr = stratio nonep_trans / p cli;   
+   run; 
+
+
+   /*SAS CODE*/
+/* Prediction and 95% prediction interval */
+
+/*create data set for stratio =20 and nonep= 0.5*/
+data caschool_pred;
+input country $ district $ testscr stratio nonep;
+cards;
+dummy dummy . 20 0.5
+run;
+
+/*merge both datasets and create new one*/
+data caschool2;
+        set caschool caschool_pred;
+Run;
+
+data caschool2_trans; 
+set caschool2; 
+	nonep_trans = log(nonep + 1 ); 
+run; 
+
+data caschool2_trans; 
+set caschool2_trans; 
+	interaction  = nonep_trans * stratio; 
+run; 
+
+/*Pointwise prediction and confidence intervals at alpha=0.05 */
+proc reg data=caschool2_trans;
+model testscr = stratio nonep_trans interaction /p clm cli alpha=0.05;
+run;
+
